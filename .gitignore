@@ -1,0 +1,1486 @@
+
+options mprint mtrace symbolgen
+%let Data_1path =E:\Health Econ Research\Data\OSHPD_FIN_Complete;
+
+
+/* A */
+%Macro import;
+	%do i=2002  %to 2013;	
+		;Proc import 
+			out= A_Fin&i.
+			datafile= "&Data_1path.\%eval(&i -1974)HospitalData_%eval(&i -2000)_%eval(&i -1999).xlsx"
+			dbms=excel2007 replace
+			;
+		sheet="Import";
+		getnames=yes;
+		mixed=yes;
+
+	%end;
+run;
+%mend;
+
+%import;
+
+	/* Bringing Utilization Data for license information*/
+
+%Macro import_util;
+	%do i=2002  %to 2014;	
+		;Proc import 
+			out= A_Util&i.
+			datafile= "&Data_1path.\hosp%eval(&i -2000)_util_data.xls"
+			dbms=excel replace
+			;
+		sheet="Section 1-4";
+		getnames=yes;
+	%end;
+run;
+%mend;
+
+%import_util;
+
+%let keep_util1 = 
+PARENT_NAME
+OSHPD_ID
+TEACH_HOSP
+COUNTY
+FACILITY_LEVEL
+TYPE_LIC
+TYPE_SVC_PRINCIPAL
+ED_LIC_LEVL_END
+EMS_STATION
+EMS_CLOSED_TOTL_HOURS;
+
+%let keep_util2 = 
+PARENT_NAME
+OSHPD_ID
+TEACH_HOSP
+COUNTY
+FACILITY_LEVEL
+TYPE_LIC
+TYPE_SVC_PRINCIPAL
+ED_LIC_LEVL_END
+EMS_STATION
+EMS_AMB_DIVERS_TOTL_HOURS;
+
+Data B_Util_stack (drop = oshpd_id rename = oshpd_id_=oshpd_id);
+set 
+A_Util2002 (in=a keep =&keep_util1 rename = EMS_CLOSED_TOTL_HOURS=EMS_AMB_DIVERS_TOTL_HOURS)
+A_Util2003 (in=b keep =&keep_util1 rename = EMS_CLOSED_TOTL_HOURS=EMS_AMB_DIVERS_TOTL_HOURS)
+A_Util2004 (in=c keep =&keep_util1 rename = EMS_CLOSED_TOTL_HOURS=EMS_AMB_DIVERS_TOTL_HOURS)
+A_Util2005 (in=d keep =&keep_util1 rename = EMS_CLOSED_TOTL_HOURS=EMS_AMB_DIVERS_TOTL_HOURS)
+A_Util2006 (in=e keep =&keep_util1 rename = EMS_CLOSED_TOTL_HOURS=EMS_AMB_DIVERS_TOTL_HOURS)
+A_Util2007 (in=f keep =&keep_util1 rename = EMS_CLOSED_TOTL_HOURS=EMS_AMB_DIVERS_TOTL_HOURS)
+A_Util2008 (in=g keep =&keep_util2 )
+A_Util2009 (in=h keep =&keep_util2 )
+A_Util2010 (in=i keep =&keep_util2 )
+A_Util2011 (in=j keep =&keep_util2 )
+A_Util2012 (in=k keep =&keep_util2 )
+A_Util2013 (in=l keep =&keep_util2 )
+A_Util2014 (in=m keep =&keep_util2 )
+;
+if a then year = 2002;
+if b then year = 2003;
+if c then year = 2004;
+if d then year = 2005;
+if e then year = 2006;
+if f then year = 2007;
+if g then year = 2008;
+if h then year = 2009;
+if i then year = 2010;
+if j then year = 2011;
+if k then year = 2012;
+if l then year = 2013;
+if m then year = 2014;
+if oshpd_id=. then delete;
+
+oshpd_id_=substr(strip(input(oshpd_id,best12.)),4,6);
+run;
+
+
+proc sort nodupkey data = B_util_stack dupout =C_util_dup;
+by oshpd_id year;
+proc transpose data = B_util_stack
+out = C_Util_trsp_LicTyp prefix=year_;
+by oshpd_id;
+var type_lic;
+id year;
+run;
+data C_Util_trsp_LicTyp_chg;
+	set C_Util_trsp_LicTyp;
+if year_2002 not in ("General Acute Care") and
+year_2002 not in ("General Acute Care") and
+year_2003 not in ("General Acute Care") and
+year_2004 not in ("General Acute Care") and
+year_2005 not in ("General Acute Care") and
+year_2006 not in ("General Acute Care") and
+year_2007 not in ("General Acute Care") and
+year_2008 not in ("General Acute Care") and
+year_2009 not in ("General Acute Care") and
+year_2010 not in ("General Acute Care") and
+year_2012 not in ("General Acute Care") and
+year_2013 not in ("General Acute Care") and
+year_2014 not in ("General Acute Care")  then output; 
+
+run;
+/* 106494048 changes license type from gen acute to acute psych */
+
+proc transpose data = B_util_stack
+out = C_Util_trsp_Svsc (drop =_:) prefix=year_;
+by oshpd_id;
+var TYPE_SVC_PRINCIPAL;
+id year;
+run;
+
+data C_Util_trsp_Svsc_chg;
+	set C_Util_trsp_Svsc;
+if year_2002 in ("Psychiatric" "Other" "Long-Term Care (SN/IC)" "Physical Rehabilitation" "Pediatric" "Chemical Dependency (Alcohol/Drug)") or
+year_2003 in ("Psychiatric" "Other" "Long-Term Care (SN/IC)" "Physical Rehabilitation" "Pediatric" "Chemical Dependency (Alcohol/Drug)") or
+year_2004 in ("Psychiatric" "Other" "Long-Term Care (SN/IC)" "Physical Rehabilitation" "Pediatric" "Chemical Dependency (Alcohol/Drug)") or
+year_2005 in ("Psychiatric" "Other" "Long-Term Care (SN/IC)" "Physical Rehabilitation" "Pediatric" "Chemical Dependency (Alcohol/Drug)") or
+year_2006 in ("Psychiatric" "Other" "Long-Term Care (SN/IC)" "Physical Rehabilitation" "Pediatric" "Chemical Dependency (Alcohol/Drug)") or
+year_2007 in ("Psychiatric" "Other" "Long-Term Care (SN/IC)" "Physical Rehabilitation" "Pediatric" "Chemical Dependency (Alcohol/Drug)") or
+year_2008 in ("Psychiatric" "Other" "Long-Term Care (SN/IC)" "Physical Rehabilitation" "Pediatric" "Chemical Dependency (Alcohol/Drug)") or
+year_2009 in ("Psychiatric" "Other" "Long-Term Care (SN/IC)" "Physical Rehabilitation" "Pediatric" "Chemical Dependency (Alcohol/Drug)") or
+year_2010 in ("Psychiatric" "Other" "Long-Term Care (SN/IC)" "Physical Rehabilitation" "Pediatric" "Chemical Dependency (Alcohol/Drug)") or
+year_2011 in ("Psychiatric" "Other" "Long-Term Care (SN/IC)" "Physical Rehabilitation" "Pediatric" "Chemical Dependency (Alcohol/Drug)") or
+year_2012 in ("Psychiatric" "Other" "Long-Term Care (SN/IC)" "Physical Rehabilitation" "Pediatric" "Chemical Dependency (Alcohol/Drug)") or
+year_2013 in ("Psychiatric" "Other" "Long-Term Care (SN/IC)" "Physical Rehabilitation" "Pediatric" "Chemical Dependency (Alcohol/Drug)") or
+year_2014 in ("Psychiatric" "Other" "Long-Term Care (SN/IC)" "Physical Rehabilitation" "Pediatric" "Chemical Dependency (Alcohol/Drug)") 
+then  chg_Prmry_Svc=1; else chg_Prmry_Svc=0;
+
+if year_2002  in ("General Medical / Surgical") or
+year_2002  in ("General Medical / Surgical") or
+year_2003 in ("General Medical / Surgical") or
+year_2004 in ("General Medical / Surgical") or
+year_2005 in ("General Medical / Surgical") or
+year_2006 in ("General Medical / Surgical") or
+year_2007 in ("General Medical / Surgical") or
+year_2008 in ("General Medical / Surgical") or
+year_2009 in ("General Medical / Surgical") or
+year_2010 in ("General Medical / Surgical") or
+year_2012 in ("General Medical / Surgical") or
+year_2013 in ("General Medical / Surgical") or
+year_2014 in ("General Medical / Surgical")  then output; 
+
+run;
+/* 106150775 changes principle service from gen med surg to psych
+	106210993 changes principle service from physical reab to gen med surg 
+	106370673 changes principle service from gen med surg to peds
+	106491103 changes principle service from gen med surg to other
+	106304113 changes principle service from gen med surg to peds
+	106301357 changes principle service from gen med surg to LT care
+	106300032 changes principle service from gen med surg to peds
+	106074011 changes principle service from gen med surg to other
+*/
+
+proc transpose data = B_util_stack
+out = C_Util_trsp_EDLic (drop =_:) prefix=year_;
+by oshpd_id;
+var ED_LIC_LEVL_END;
+id year;
+run;
+
+data C_Util_trsp_EDLic_chg;
+	set C_Util_trsp_EDLic;
+
+if year_2002 not in ("Basic" "Comprehensive") and
+year_2002 not in ("Basic" "Comprehensive") and
+year_2003 not in ("Basic" "Comprehensive") and
+year_2004 not in ("Basic" "Comprehensive") and
+year_2005 not in ("Basic" "Comprehensive") and
+year_2006 not in ("Basic" "Comprehensive") and
+year_2007 not in ("Basic" "Comprehensive") and
+year_2008 not in ("Basic" "Comprehensive") and
+year_2009 not in ("Basic" "Comprehensive") and
+year_2010 not in ("Basic" "Comprehensive") and
+year_2012 not in ("Basic" "Comprehensive") and
+year_2013 not in ("Basic" "Comprehensive") and
+year_2014 not in ("Basic" "Comprehensive")  then delete; 
+
+if year_2002 in ("0" "standby") or
+year_2003 in ("0" "standby") or
+year_2004 in ("0" "standby") or
+year_2005 in ("0" "standby") or
+year_2006 in ("0" "standby") or
+year_2007 in ("0" "standby") or
+year_2008 in ("0" "standby") or
+year_2009 in ("0" "standby") or
+year_2010 in ("0" "standby") or
+year_2011 in ("0" "standby") or
+year_2012 in ("0" "standby") or
+year_2013 in ("0" "standby") or
+year_2014 in ("0" "standby") then  chg_ed_hosps=1; else chg_ed_hosps=0;
+
+run;
+/* 20 hospitals have basic or comprehensive ED and move down to no ED or standby over 02-2014 period*/
+
+/*B*/
+
+%let rename=
+
+State__OSHPD__Facility_Number=oshpd_id
+Name_of_Owner=Name_Owner
+Health_Care_Institution__Legal_N=Legal_Name
+
+Type_of_Control_District=Ctrl_District
+Type_of_Control_County=Ctrl_County
+Type_of_Control_City=Ctrl_City
+Type_of_Control_City_County=Ctrl_CityCounty
+Type_of_Control_State=Ctrl_State
+
+
+
+Beds_Licensed__End_of_Period__To=Beds_Lcsd_EndYr
+Beds_Available__Avg__Total=Beds_Avail_Tot
+Beds_Staffed__Avg__Total=Beds_Stfd_Tot
+Discharges_Service_Total=Dschrg_Svsc_Tot
+Discharges_Total=Dschrg_Tot_check
+Patient__Census__Days_Medicare__=Pat_Days_McrTrad
+Outpatient_Visits_Medicare___Tra=Visits_OP_McrTrad
+Patient__Census__Days_Medicare_0=Pat_Days_McrMgd
+Outpatient_Visits_Medicare___Man=Visits_OP_McrMgd
+Patient__Census__Days_Medi_Cal__=Pat_Days_MCalTrd
+Outpatient_Visits_Medi_Cal___Tra=Visits_OP_MCalTrd
+Patient__Census__Days_Medi_Cal_0=Pat_Days_MCalMgd
+Outpatient_Visits_Medi_Cal___Man=Visits_OP_MCalMgd
+Patient__Census__Days_County_Ind=Pat_Days_IndgTrd
+Outpatient_Visits_County_Indigen=Visits_OP_IndgTrd
+Patient__Census__Days_County_In0=Pat_Days_IndgMgd
+Outpatient_Visits_County_Indige0=Visits_OP_IndgMgd
+Patient__Census__Days_Other_Thir=Pat_Days_CommTrad
+Outpatient_Visits_Other_Third_Pa=Visits_OP_CommTrad
+Patient__Census__Days_Other_Thi0=Pat_Days_CommMgd
+Outpatient_Visits_Other_Third_P0=Visits_OP_CommMgd
+Patient__Census__Days_Other_Indi=Pat_Days_OthrInd
+Outpatient_Visits_Other_Indigent=Visits_OP_OthrInd
+Patient__Census__Days_Other_Paye=Pat_Days_OthrPyr
+Outpatient_Visits_Other_Payers_T=Visits_OP_OthrPyr
+Patient__Census__Days_Total_Tota=Pat_Days_Tot
+Outpatient_Visits_Total_Total=Visits_OP_Tot
+Discharges_Medicare___Traditiona=Dschrg_McrTrad
+Discharges_Medicare___Managed_Ca=Dschrg_McrMgd
+Discharges_Medi_Cal___Traditiona=Dschrg_MCalTrd
+Discharges_Medi_Cal___Managed_Ca=Dschrg_MCalMgd
+Discharges_County_Indigent_Progr=Dschrg_IndgTrd
+Discharges_County_Indigent_Prog0=Dschrg_IndgMgd
+Discharges_Other_Third_Parties__=Dschrg_CommTrad
+Discharges_Other_Third_Parties_0=Dschrg_CommMgd
+Discharges_Other_Indigent_Total=Dschrg_OthrInd
+Discharges_Other_Payers_Total=Dschrg_OthrPyr
+Discharges_Total1=Dschrg_Tot
+
+
+
+
+		Balance_Sheet_Current_Assets_Acc=Bal_CA_AR_NR
+		Balance_Sheet_Current_Assets_Les=Bal_CA_Less_Uncllt
+		Balance_Sheet_Current_Assets_Rec=Bal_CA_AR_Comm_Payors
+		Balance_Sheet_Current_Assets_Tot=Bal_CA_Tot_CA
+		Balance_Sheet_Property__Plant_an=Bal_PPE_Eqpt
+		Balance_Sheet_Property__Plant_a0=Bal_PPE_Tot_PPE
+		Balance_Sheet_Property__Plant_a1=Bal_PPE_Tot_PPE_Less_Depr
+		Balance_Sheet_Property__Plant_a2=Bal_PPE_Net_PPE
+		Balance_Sheet_Investments_and_Ot=Bal_Inv_Tot_Inv_OthrAsst
+		Balance_Sheet_Intangible_Assets_=Bal_IntgA_Tot
+		Balance_Sheet_Assets_Total_Asset=Bal_Tot_Assts
+		Balance_Sheet_Current_Liabilitie=Bal_CL_NP_LP
+		Balance_Sheet_Current_Liabiliti0=Bal_CL_AP
+		Balance_Sheet_Current_Liabiliti1=Bal_CL_Advcs_fr_Comm_Payors
+		Balance_Sheet_Current_Liabiliti2=Bal_CL_Pybl_to_Comm_Payors
+		Balance_Sheet_Current_Liabiliti3=Bal_CL_Tot_CL
+		Balance_Sheet_Long_Term_Debt_Mor=Bal_LTD_MrtgPbl
+		Balance_Sheet_Long_Term_Debt_Con=Bal_LTD_CnstrctLns
+		Balance_Sheet_Long_Term_Debt_Not=Bal_LTD_Nts_RvlvCR
+		Balance_Sheet_Long_Term_Debt_Cap=Bal_LTD_Cap_Ls_Obl
+		Balance_Sheet_Long_Term_Debt_Bon=Bal_LTD_BP
+		Balance_Sheet_Long_Term_Debt_Int=Bal_LTD_Int_Co_Pbl_NonCur
+		Balance_Sheet_Long_Term_Debt_Oth=Bal_LTD_Oth_NonCur
+		Balance_Sheet_Long_Term_Debt__To=Bal_LTD_Tot_LTD
+		Balance_Sheet_Long_Term_Debt_Les=Bal_LTD_Tot_LTD_Less_CurrMtr
+		Balance_Sheet_Long_Term_Debt__Ne=Bal_LTD_Net_LTD
+		Balance_Sheet_Total_Liabilities=Bal_Tot_Liabs
+		Balance_Sheet_Equity_Investor_Ow=Bal_EQ_Invt_Crp_RE
+		Balance_Sheet_Total_Equity=Bal_Tot_EQ
+		Balance_Sheet_Total_Liabilities_=Bal_Tot_LiabEQ
+		Changes_in_Proprty__Plant_and_Eq=Chg_PPE_BB_Eqpt
+		Changes_in_Proprty__Plant_and_E0=Chg_PPE_Addtns_Eqpt
+		Changes_in_Proprty__Plant_and_E1=Chg_PPE_Dntns_Eqpt
+		Changes_in_Proprty__Plant_and_E2=Chg_PPE_Trnfr_Eqpt
+		Changes_in_Proprty__Plant_and_E3=Chg_PPE_Dspsl_Eqpt
+		Changes_in_Proprty__Plant_and_E4=Chg_PPE_EB_Eqpt
+		Income_Statement_Gross_Patient_R=IS_Gr_Rev_Daily_Hosp_svcs
+		Income_Statement_Gross_Patient_0=IS_Gr_Rev_Pats
+		Income_Statement_Deductions_from=IS_Rev_Ddcts
+		Income_Statement_Net_Patient_Rev=IS_Rev_Net
+		Income_Statement_Other_Operating=IS_Rev_Othr_Op
+		Income_Statement_Total_Operating=IS_Rev_Tot_Op
+		Income_Statement_Operating_Expen=IS_Exp_Daily_Hosp_Svcs
+		Income_Statement_Total_Operatin0=IS_Exp_Tot_Op
+		Income_Statement_Net_from_Operat=IS_Net_Op
+		Income_Statement_Net_Non_Operati=IS_Net_NOp_Rev_Exp
+		Income_Statement_Extraordinary_I=IS_Xtraord1
+		Income_Statement_Extraordinary_0=IS_Xtraord2
+		Income_Statement_Net_Income=IS_Net_Income
+		Income_Statement_Deductions_fro0=IS_Ddcts_BD
+		Income_Statement_Deductions_fro1=IS_Ddcts_CtrcAdj_McrTrad
+		Income_Statement_Deductions_fro2=IS_Ddcts_CtrcAdj_McrMgd
+		Income_Statement_Deductions_fro3=IS_Ddcts_CtrcAdj_MCalTrd
+		Income_Statement_Deductions_fro4=IS_Ddcts_CtrcAdj_MCalMgd
+		Income_Statement_Deductions_fro5=IS_Ddcts_CtrcAdj_DSHMCal
+		Income_Statement_Deductions_fro6=IS_Ddcts_CtrcAdj_IndgTrd
+		Income_Statement_Deductions_fro7=IS_Ddcts_CtrcAdj_IndgMgd
+		Income_Statement_Deductions_fro8=IS_Ddcts_CtrcAdj_CommTrad
+		Income_Statement_Deductions_fro9=IS_Ddcts_CtrcAdj_CommMgd
+		Income_Statement_Deductions_fr10=IS_Ddcts_CtrcAdj_PolDicnt
+		Income_Statement_Deductions_fr11=IS_Ddcts_CtrcAdj_Tot
+		Income_Statement_Capitation_Prem=IS_CptionRev_Tot
+		Income_Statement_Non_Operating_R=IS_NonOP_Rev_Tot
+		Income_Statement_Non_Operating_E=IS_NonOP_Exp_Tot
+		Income_Statement_Net_Non_Operat0=IS_NonOp_Net
+		Income_Statement_Interest_on_Lon=IS_Intrst_LTD
+		Cash_Flow___Operating_Activities=CF_OPAct_NetInc
+		Cash_Flow___Operating_Activitie0=CF_OPAct_NetCash
+		Cash_Flow___Investing_Activities=CF_InvstAct_PPE
+		Cash_Flow___Investing_Activitie0=CF_InvstAct_NetCash
+		Cash_Flow___Financing_Activities=CF_FinAct_NetCash
+		Cash_Flow_Cash_at_Beginning_of_Y=CF_Cash_Bg_Yr
+		Cash_Flow_Cash_at_End_of_Year=CF_Cash_End_Yr
+		Summary_of_Revenue_and_Costs_Gro=SRC_GrRev_MSrg_Act
+		Summary_of_Revenue_and_Costs_Gr0=SRC_GrRev_DailyHosp
+		Summary_of_Revenue_and_Costs_Ded=SRC_Ddcts_MSrg_Act
+		Summary_of_Revenue_and_Costs_De0=SRC_Ddcts_DailyHosp
+		Summary_of_Revenue_and_Costs_Adj=SRC_Adj_Prfsl_MSrg_Act
+		Summary_of_Revenue_and_Costs_Ad0=SRC_Adj_Prfsl_Ddcts_DailyHosp
+		Summary_of_Revenue_and_Costs_Net=SRC_NetRev_MSrg_Act
+		Summary_of_Revenue_and_Costs_Ne0=SRC_NetRev_DailyHosp
+		Summary_of_Revenue_and_Costs_Ne1=SRC_NetInc_MSrg_Act
+		Summary_of_Revenue_and_Costs_Ne2=SRC_NetInc_DailyHosp
+		Gross_Inpatient_Revenue_Medicare=Gr_IP_Rev_McrTrad_MSrg_Act
+		Gross_Inpatient_Revenue_Medicar0=Gr_IP_Rev_McrTrad_DailyHosp
+		Gross_Inpatient_Revenue_Medicar1=Gr_IP_Rev_McrMgd_MSrg_Act
+		Gross_Inpatient_Revenue_Medicar2=Gr_IP_Rev_McrMgd_DailyHosp
+		Gross_Inpatient_Revenue_Medi_Cal=Gr_IP_Rev_MCalTrd_MSrg_Act
+		Gross_Inpatient_Revenue_Medi_Ca0=Gr_IP_Rev_MCalTrd_DailyHosp
+		Gross_Inpatient_Revenue_Medi_Ca1=Gr_IP_Rev_MCalMgd_MSrg_Act
+		Gross_Inpatient_Revenue_Medi_Ca2=Gr_IP_Rev_MCalMgd_DailyHosp
+		Gross_Inpatient_Revenue_County_I=Gr_IP_Rev_IndgTrd_MSrg_Act
+		Gross_Inpatient_Revenue_County_0=Gr_IP_Rev_IndgTrd_DailyHosp
+		Gross_Inpatient_Revenue_County_1=Gr_IP_Rev_IndgMgd_MSrg_Act
+		Gross_Inpatient_Revenue_County_2=Gr_IP_Rev_IndgMgd_DailyHosp
+		Gross_Inpatient_Revenue_Other_Th=Gr_IP_Rev_CommTrad_MSrg_Act
+		Gross_Inpatient_Revenue_Other_T0=Gr_IP_Rev_CommTrad_DailyHosp
+		Gross_Inpatient_Revenue_Other_T1=Gr_IP_Rev_CommMgd_MSrg_Act
+		Gross_Inpatient_Revenue_Other_T2=Gr_IP_Rev_CommMgd_DailyHosp
+		Gross_Inpatient_Revenue_Other_In=Gr_IP_Rev_OthrInd_MSrg_Act
+		Gross_Inpatient_Revenue_Other_I0=Gr_IP_Rev_OthrInd_DailyHosp
+		Gross_Inpatient_Revenue_Other_Pa=Gr_IP_Rev_OthrPyr_MSrg_Act
+		Gross_Inpatient_Revenue_Other_P0=Gr_IP_Rev_OthrPyr_DailyHosp
+		Gross_Inpatient_Revenue_Total_Me=Gr_IP_Rev_Tot_MSrg_Act
+		Gross_Inpatient_Revenue_Total_Da=Gr_IP_Rev_Tot_DailyHosp
+		Gross_Patient_Revenue_Total_Medi=Gr_Pat_Rev_Tot_Tot_MSrg_Act
+		Gross_Patient_Revenue_Total_Dail=Gr_Pat_Rev_Tot_DailyHosp
+		Other_Operating_Revenue_Finance_=Othr_OpRev_FinChrg_AR
+		Other_Operating_Revenue_Total_Co=Othr_OpRev_Recoveries
+		Other_Operating_Revenue_Total_Ot=Othr_OpRev_OthrAllctRev
+		Other_Operating_Revenue_Total_Re=Othr_OpRev_RsrchEd
+		Physician_and_Student_Compensati=EmpComp_Wages_DailyHosp
+		Physician_and_Student_Compensat0=EmpComp_Bnfts_DailyHosp
+		Physician_and_Student_Compensat1=EmpComp_PrfslFees_DailyHosp
+		Physician_and_Student_Compensat2=EmpComp_Tot_Comp_DailyHosp
+		Physician_and_Student_Compensat3=EmpComp_Tot_Comp_Rsrch_Admn
+;
+
+
+
+%Let Merge_Counties= 
+"10"
+"19"
+"30"
+"36"
+"37"
+"38"
+"01"
+"33"
+"40"
+;
+
+
+Data B_AllYears (drop = F191-F255 
+Patient__Census__Days_Pediatric_  
+Licensed_Beds__End_of_Period_ 
+Staffed_Beds__Average_
+Type_of_Control_Church
+Type_of_Control_Non_Profit_Corpo
+Type_of_Control_Non_Profit_Other
+Type_of_Control_Investor___Indiv
+Type_of_Control_Investor___Partn
+Type_of_Control_Investor___Corpo
+Ctrl_State
+Ctrl_County
+Ctrl_CityCounty
+Ctrl_City
+Ctrl_District
+);
+	set 
+		A_fin2002 (in=l rename =( &rename))
+		A_fin2003 (in=k rename =( &rename))
+		A_fin2004 (in=j rename =( &rename))
+		A_fin2005 (in=a rename =( &rename))
+		A_fin2006 (in=b rename =( &rename))
+		A_fin2007 (in=c rename =( &rename))
+		A_fin2008 (in=d rename =( &rename))
+		A_fin2009 (in=e rename =( &rename))
+		A_fin2010 (in=f rename =( &rename))
+		A_fin2011 (in=g rename =( &rename))
+		A_fin2012 (in=h rename =( &rename))
+		A_fin2013 (in=i rename =( &rename))
+		;
+		if a then year=2005;
+		else if b then year = 2006;
+		else if c then year = 2007;
+		else if d then year = 2008;
+		else if e then year = 2009;
+		else if f then year = 2010;
+		else if g then year = 2011;
+		else if h then year = 2012;
+		else if i then year = 2013;
+		else if j then year = 2004;
+		else if k then year = 2003;
+		else if l then year = 2002;
+		else year =.;
+
+format oshpd_id $6. 
+county_code $2. 
+County $20. 
+Dum_Merged_County $1. 
+Dum_Merged_Hospital $1. 
+Acquired_year best12. 
+Acquired_qtr best12.
+Owner_Clean $100.
+Ownership $30.
+Cntrl_Church
+Cntrl_NonProf_crp
+Cntrl_NonProf_Otr
+Cntrl_Ivstr_Indv
+Cntrl_Ivstr_Pntr
+Cntrl_Ivstr_Corp
+Cntrl_Gov_St
+Cntrl_Gov_Cnty
+Cntrl_Gov_CtyCnty
+Cntrl_Gov_Cty
+Cntrl_Gov_Dst best12.
+Daily_Cen_Tot
+Daily_Cen_OthrPyr
+Daily_Cen_OthrInd
+Daily_Cen_CommMgd
+Daily_Cen_CommTrad
+Daily_Cen_IndgMgd
+Daily_Cen_IndgTrd
+Daily_Cen_MCalMgd
+Daily_Cen_MCalTrd
+Daily_Cen_McrMgd
+Daily_Cen_McrTrad best12.2
+;
+
+
+if Date = "XXXXXXXXXXXXXXX" then delete;
+
+
+if year =2002	then CPI_hosp_2002=1;
+else if year = 2003	then CPI_hosp_2002=1.060571006;
+else if year = 2004	then CPI_hosp_2002=1.130604785;
+else if year = 2005	then CPI_hosp_2002=1.191291472;
+else if year = 2006	then CPI_hosp_2002=1.25834066;
+else if year = 2007	then CPI_hosp_2002=1.337950812;
+else if year = 2008	then CPI_hosp_2002=1.438780714;
+else if year = 2009	then CPI_hosp_2002=1.526626255;
+else if year = 2010	then CPI_hosp_2002=1.632974874;
+else if year = 2011	 then CPI_hosp_2002=1.734011614;
+else if year = 2012 then CPI_hosp_2002=1.82484568;
+else if year = 2013	then CPI_hosp_2002=1.905231364;
+else if year = 2014	then CPI_hosp_2002=1.99563278;
+else CPI_hosp_2002=.;
+
+
+	%macro dateconvert(var);
+	format _&var DATE9.;
+	_&var =  input(&var, MMDDYY10.);
+	drop &var;
+	rename _&var = &var;
+	%mend dateconvert;
+
+	%dateconvert(Date)
+	%dateconvert(Report_Period_From)
+
+	%macro convnum(var);
+			Format _&Var best12.;
+			_&Var = &Var * 1;
+			Drop &Var;
+			Rename _&Var = &Var;
+			%mend convnum;
+%convnum(Beds_Lcsd_EndYr)
+%convnum(Beds_Avail_Tot)
+%convnum(Beds_Stfd_Tot)
+%convnum(Dschrg_Svsc_Tot)
+%convnum(Dschrg_Tot_check)
+%convnum(Pat_Days_McrTrad)
+%convnum(Visits_OP_McrTrad)
+%convnum(Pat_Days_McrMgd)
+%convnum(Visits_OP_McrMgd)
+%convnum(Pat_Days_MCalTrd)
+%convnum(Visits_OP_MCalTrd)
+%convnum(Pat_Days_MCalMgd)
+%convnum(Visits_OP_MCalMgd)
+%convnum(Pat_Days_IndgTrd)
+%convnum(Visits_OP_IndgTrd)
+%convnum(Pat_Days_IndgMgd)
+%convnum(Visits_OP_IndgMgd)
+%convnum(Pat_Days_CommTrad)
+%convnum(Visits_OP_CommTrad)
+%convnum(Pat_Days_CommMgd)
+%convnum(Visits_OP_CommMgd)
+%convnum(Pat_Days_OthrInd)
+%convnum(Visits_OP_OthrInd)
+%convnum(Pat_Days_OthrPyr)
+%convnum(Visits_OP_OthrPyr)
+%convnum(Pat_Days_Tot)
+%convnum(Visits_OP_Tot)
+%convnum(Dschrg_McrTrad)
+%convnum(Dschrg_McrMgd)
+%convnum(Dschrg_MCalTrd)
+%convnum(Dschrg_MCalMgd)
+%convnum(Dschrg_IndgTrd)
+%convnum(Dschrg_IndgMgd)
+%convnum(Dschrg_CommTrad)
+%convnum(Dschrg_CommMgd)
+%convnum(Dschrg_OthrInd)
+%convnum(Dschrg_OthrPyr)
+%convnum(Dschrg_Tot)
+
+	%macro convdollar(var);
+			Format _&Var dollar12.2;
+			_&Var = (&Var * 1)/CPI_hosp_2002;
+			Drop &Var;
+			Rename _&Var = &Var;
+			%mend convdollar;
+
+
+
+		%convdollar(Bal_CA_AR_NR)
+		%convdollar(Bal_CA_Less_Uncllt)
+		%convdollar(Bal_CA_AR_Comm_Payors)
+		%convdollar(Bal_CA_Tot_CA)
+		%convdollar(Bal_PPE_Eqpt)
+		%convdollar(Bal_PPE_Tot_PPE)
+		%convdollar(Bal_PPE_Tot_PPE_Less_Depr)
+		%convdollar(Bal_PPE_Net_PPE)
+		%convdollar(Bal_Inv_Tot_Inv_OthrAsst)
+		%convdollar(Bal_IntgA_Tot)
+		%convdollar(Bal_Tot_Assts)
+		%convdollar(Bal_CL_NP_LP)
+		%convdollar(Bal_CL_AP)
+		%convdollar(Bal_CL_Advcs_fr_Comm_Payors)
+		%convdollar(Bal_CL_Pybl_to_Comm_Payors)
+		%convdollar(Bal_CL_Tot_CL)
+		%convdollar(Bal_LTD_MrtgPbl)
+		%convdollar(Bal_LTD_CnstrctLns)
+		%convdollar(Bal_LTD_Nts_RvlvCR)
+		%convdollar(Bal_LTD_Cap_Ls_Obl)
+		%convdollar(Bal_LTD_BP)
+		%convdollar(Bal_LTD_Int_Co_Pbl_NonCur)
+		%convdollar(Bal_LTD_Oth_NonCur)
+		%convdollar(Bal_LTD_Tot_LTD)
+		%convdollar(Bal_LTD_Tot_LTD_Less_CurrMtr)
+		%convdollar(Bal_LTD_Net_LTD)
+		%convdollar(Bal_Tot_Liabs)
+		%convdollar(Bal_EQ_Invt_Crp_RE)
+		%convdollar(Bal_Tot_EQ)
+		%convdollar(Bal_Tot_LiabEQ)
+		%convdollar(Chg_PPE_BB_Eqpt)
+		%convdollar(Chg_PPE_Addtns_Eqpt)
+		%convdollar(Chg_PPE_Dntns_Eqpt)
+		%convdollar(Chg_PPE_Trnfr_Eqpt)
+		%convdollar(Chg_PPE_Dspsl_Eqpt)
+		%convdollar(Chg_PPE_EB_Eqpt)
+		%convdollar(IS_Gr_Rev_Daily_Hosp_svcs)
+		%convdollar(IS_Gr_Rev_Pats)
+		%convdollar(IS_Rev_Ddcts)
+		%convdollar(IS_Rev_Net)
+		%convdollar(IS_Rev_Othr_Op)
+		%convdollar(IS_Rev_Tot_Op)
+		%convdollar(IS_Exp_Daily_Hosp_Svcs)
+		%convdollar(IS_Exp_Tot_Op)
+		%convdollar(IS_Net_Op)
+		%convdollar(IS_Net_NOp_Rev_Exp)
+		%convdollar(IS_Xtraord1)
+		%convdollar(IS_Xtraord2)
+		%convdollar(IS_Net_Income)
+		%convdollar(IS_Ddcts_BD)
+		%convdollar(IS_Ddcts_CtrcAdj_McrTrad)
+		%convdollar(IS_Ddcts_CtrcAdj_McrMgd)
+		%convdollar(IS_Ddcts_CtrcAdj_MCalTrd)
+		%convdollar(IS_Ddcts_CtrcAdj_MCalMgd)
+		%convdollar(IS_Ddcts_CtrcAdj_DSHMCal)
+		%convdollar(IS_Ddcts_CtrcAdj_IndgTrd)
+		%convdollar(IS_Ddcts_CtrcAdj_IndgMgd)
+		%convdollar(IS_Ddcts_CtrcAdj_CommTrad)
+		%convdollar(IS_Ddcts_CtrcAdj_CommMgd)
+		%convdollar(IS_Ddcts_CtrcAdj_PolDicnt)
+		%convdollar(IS_Ddcts_CtrcAdj_Tot)
+		%convdollar(IS_CptionRev_Tot)
+		%convdollar(IS_NonOP_Rev_Tot)
+		%convdollar(IS_NonOP_Exp_Tot)
+		%convdollar(IS_NonOp_Net)
+		%convdollar(IS_Intrst_LTD)
+		%convdollar(CF_OPAct_NetInc)
+		%convdollar(CF_OPAct_NetCash)
+		%convdollar(CF_InvstAct_PPE)
+		%convdollar(CF_InvstAct_NetCash)
+		%convdollar(CF_FinAct_NetCash)
+		%convdollar(CF_Cash_Bg_Yr)
+		%convdollar(CF_Cash_End_Yr)
+		%convdollar(SRC_GrRev_MSrg_Act)
+		%convdollar(SRC_GrRev_DailyHosp)
+		%convdollar(SRC_Ddcts_MSrg_Act)
+		%convdollar(SRC_Ddcts_DailyHosp)
+		%convdollar(SRC_Adj_Prfsl_MSrg_Act)
+		%convdollar(SRC_Adj_Prfsl_Ddcts_DailyHosp)
+		%convdollar(SRC_NetRev_MSrg_Act)
+		%convdollar(SRC_NetRev_DailyHosp)
+		%convdollar(SRC_NetInc_MSrg_Act)
+		%convdollar(SRC_NetInc_DailyHosp)
+		%convdollar(Gr_IP_Rev_McrTrad_MSrg_Act)
+		%convdollar(Gr_IP_Rev_McrTrad_DailyHosp)
+		%convdollar(Gr_IP_Rev_McrMgd_MSrg_Act)
+		%convdollar(Gr_IP_Rev_McrMgd_DailyHosp)
+		%convdollar(Gr_IP_Rev_MCalTrd_MSrg_Act)
+		%convdollar(Gr_IP_Rev_MCalTrd_DailyHosp)
+		%convdollar(Gr_IP_Rev_MCalMgd_MSrg_Act)
+		%convdollar(Gr_IP_Rev_MCalMgd_DailyHosp)
+		%convdollar(Gr_IP_Rev_IndgTrd_MSrg_Act)
+		%convdollar(Gr_IP_Rev_IndgTrd_DailyHosp)
+		%convdollar(Gr_IP_Rev_IndgMgd_MSrg_Act)
+		%convdollar(Gr_IP_Rev_IndgMgd_DailyHosp)
+		%convdollar(Gr_IP_Rev_CommTrad_MSrg_Act)
+		%convdollar(Gr_IP_Rev_CommTrad_DailyHosp)
+		%convdollar(Gr_IP_Rev_CommMgd_MSrg_Act)
+		%convdollar(Gr_IP_Rev_CommMgd_DailyHosp)
+		%convdollar(Gr_IP_Rev_OthrInd_MSrg_Act)
+		%convdollar(Gr_IP_Rev_OthrInd_DailyHosp)
+		%convdollar(Gr_IP_Rev_OthrPyr_MSrg_Act)
+		%convdollar(Gr_IP_Rev_OthrPyr_DailyHosp)
+		%convdollar(Gr_IP_Rev_Tot_MSrg_Act)
+		%convdollar(Gr_IP_Rev_Tot_DailyHosp)
+		%convdollar(Gr_Pat_Rev_Tot_Tot_MSrg_Act)
+		%convdollar(Gr_Pat_Rev_Tot_DailyHosp)
+		%convdollar(Othr_OpRev_FinChrg_AR)
+		%convdollar(Othr_OpRev_Recoveries)
+		%convdollar(Othr_OpRev_OthrAllctRev)
+		%convdollar(Othr_OpRev_RsrchEd)
+		%convdollar(EmpComp_Wages_DailyHosp)
+		%convdollar(EmpComp_Bnfts_DailyHosp)
+		%convdollar(EmpComp_PrfslFees_DailyHosp)
+		%convdollar(EmpComp_Tot_Comp_DailyHosp)
+		%convdollar(EmpComp_Tot_Comp_Rsrch_Admn)
+		
+	oshpd_id=substr(strip(oshpd_id),4,6);
+
+	if OSHPD_ID in (
+	"190256" 
+	"190521" 
+	"370759" 
+	"450940" 
+	"361144" 
+	"190517" 
+	"190197" 
+	"100797" 
+	"190148" 
+	"190200" 
+	"190280" 
+	"190475" 
+	"190673" 
+	"190708" 
+	"190766" 
+	"301098" 
+	"301209" 
+	"301234" 
+	"301283" 
+	"301379" 
+	"361166" 
+	"370652" 
+	"380929" 
+	"380964" 
+	"013619" 
+	"301337" 
+	"331152" 
+	"400466" 
+	"190599" 
+	) then Dum_Merged_Hospital="1"; else Dum_Merged_Hospital="0";
+
+
+	if OSHPD_ID="190256" then do; Acquired_year=2009; Acquired_Qtr=1;end;
+	if OSHPD_ID="190521" then do; Acquired_year=2009; Acquired_Qtr=1;end;
+	if OSHPD_ID="370759" then do; Acquired_year=2007; Acquired_Qtr=1;end;
+	if OSHPD_ID="450940" then do; Acquired_year=2008; Acquired_Qtr=4;end;
+	if OSHPD_ID="361144" then do; Acquired_year=2006; Acquired_Qtr=3;end;
+	if OSHPD_ID="190517" then do; Acquired_year=2008; Acquired_Qtr=3;end;
+	if OSHPD_ID="190197" then do; Acquired_year=2010; Acquired_Qtr=1;end;
+	if OSHPD_ID="100797" then do; Acquired_year=2011; Acquired_Qtr=2;end;
+	if OSHPD_ID="190148" then do; Acquired_year=2007; Acquired_Qtr=4;end;
+	if OSHPD_ID="190200" then do; Acquired_year=2007; Acquired_Qtr=4;end;
+	if OSHPD_ID="190280" then do; Acquired_year=2008; Acquired_Qtr=2;end;
+	if OSHPD_ID="190475" then do; Acquired_year=2011; Acquired_Qtr=2;end;
+	if OSHPD_ID="190673" then do; Acquired_year=2008; Acquired_Qtr=2;end;
+	if OSHPD_ID="190708" then do; Acquired_year=2006; Acquired_Qtr=1;end;
+	if OSHPD_ID="190766" then do; Acquired_year=2011; Acquired_Qtr=2;end;
+	if OSHPD_ID="301098" then do; Acquired_year=2009; Acquired_Qtr=1;end;
+	if OSHPD_ID="301209" then do; Acquired_year=2006; Acquired_Qtr=4;end;
+	if OSHPD_ID="301234" then do; Acquired_year=2006; Acquired_Qtr=4;end;
+	if OSHPD_ID="301283" then do; Acquired_year=2008; Acquired_Qtr=2;end;  
+	if OSHPD_ID="301379" then do; Acquired_year=2006; Acquired_Qtr=4;end;
+	if OSHPD_ID="361166" then do; Acquired_year=2006; Acquired_Qtr=3;end;
+	if OSHPD_ID="370652" then do; Acquired_year=2010; Acquired_Qtr=4;end;
+	if OSHPD_ID="380929" then do; Acquired_year=2007; Acquired_Qtr=1;end;
+	if OSHPD_ID="380964" then do; Acquired_year=2007; Acquired_Qtr=1;end;
+	if OSHPD_ID="013619" then do; Acquired_year=2013; Acquired_Qtr=1;end;
+	if OSHPD_ID="301337" then do; Acquired_year=2009; Acquired_Qtr=1;end;
+	if OSHPD_ID="331152" then do; Acquired_year=2004; Acquired_Qtr=1;end;
+	if OSHPD_ID="400466" then do; Acquired_year=2004; Acquired_Qtr=2;end;
+	if OSHPD_ID="190599" then do; Acquired_year=2005; Acquired_Qtr=1;end;
+
+	
+
+county_code=substr(strip(OSHPD_ID),1,2);
+
+		if county_code="01" then County = "Alameda"; 
+		else if county_code="02" then County = "Alpine";
+		else if county_code="03" then County = "Amador";
+		else if county_code="04" then County = "Butte";
+		else if county_code="05" then County = "Calaveras";
+		else if county_code="06" then County = "Colusa";
+		else if county_code="07" then County = "Contra Costa";
+		else if county_code="08" then County = "Del Norte";
+		else if county_code="09" then County = "El Dorado";
+		else if county_code="10" then County = "Fresno";
+		else if county_code="11" then County = "Glenn";
+		else if county_code="12" then County = "Humboldt";
+		else if county_code="13" then County = "Imperial";
+		else if county_code="14" then County = "Inyo";
+		else if county_code="15" then County = "Kern";
+		else if county_code="16" then County = "Kings";
+		else if county_code="17" then County = "Lake";
+		else if county_code="18" then County = "Lassen";
+		else if county_code="19" then County = "Los Angeles";
+		else if county_code="20" then County = "Madera";
+		else if county_code="21" then County = "Marin";
+		else if county_code="22" then County = "Mariposa";
+		else if county_code="23" then County = "Mendocino";
+		else if county_code="24" then County = "Merced";
+		else if county_code="25" then County = "Modoc";
+		else if county_code="26" then County = "Mono";
+		else if county_code="27" then County = "Monterey";
+		else if county_code="28" then County = "Napa";
+		else if county_code="29" then County = "Nevada";
+		else if county_code="30" then County = "Orange";
+		else if county_code="31" then County = "Placer";
+		else if county_code="32" then County = "Plumas";
+		else if county_code="33" then County = "Riverside";
+		else if county_code="34" then County = "Sacramento";
+		else if county_code="35" then County = "San Benito";
+		else if county_code="36" then County = "San Bernardino";
+		else if county_code="37" then County = "San Diego";
+		else if county_code="38" then County = "San Francisco";
+		else if county_code="39" then County = "San Joaquin";
+		else if county_code="40" then County = "San Luis Obispo";
+		else if county_code="41" then County = "San Mateo";
+		else if county_code="42" then County = "Santa Barbara";
+		else if county_code="43" then County = "Santa Clara";
+		else if county_code="44" then County = "Santa Cruz";
+		else if county_code="45" then County = "Shasta";
+		else if county_code="46" then County = "Sierra";
+		else if county_code="47" then County = "Siskiyou";
+		else if county_code="48" then County = "Solano";
+		else if county_code="49" then County = "Sonoma";
+		else if county_code="50" then County = "Stanislaus";
+		else if county_code="51" then County = "Sutter";
+		else if county_code="52" then County = "Tehama";
+		else if county_code="53" then County = "Trinity";
+		else if county_code="54" then County = "Tulare";
+		else if county_code="55" then County = "Tuolumne";
+		else if county_code="56" then County = "Ventura";
+		else if county_code="57" then County = "Yolo";
+		else if county_code="58" then County = "Yuba";
+
+		else County="";
+
+	 
+if county_code in (&Merge_Counties) then Dum_Merged_County="1"; else Dum_Merged_County="0";
+
+
+		if Ctrl_District="1" or Ctrl_County="1" or Ctrl_City="1" or Ctrl_CityCounty="1" or Ctrl_State="1" then Dum_Govt_Ctrl=1; else Dum_Govt_Ctrl=0;
+		if (index(upcase(strip(Name_Owner)),"CHILD")>0 or index(upcase(strip(Legal_Name)),"CHILD")>0 )then Dum_Child_Hosp=1; else Dum_Child_Hosp=0;
+		if index(upcase(strip(Name_Owner)),"KAIS")>0 then Dum_KSR=1; else Dum_KSR=0;
+
+
+	if (index(upcase(strip(Name_Owner)),"ADVENTIST")>0
+			or index(upcase(strip(Name_Owner)),"SAN JOAQUIN COMMUNITY HOSPITAL")>0
+				)then Owner_Clean= "ADVENTIST HEALTH";
+		if (index(upcase(strip(Name_Owner)),"AHMC")>0 
+			or index(upcase(strip(Name_Owner)),"SAN GABRIEL VALLEY MEDICAL CENTER")>0
+					)then Owner_Clean= "AHMC HEALTHCARE";
+		if index(upcase(strip(Name_Owner)),"ALTA")>0 then Owner_Clean= "ALTA HOSPITAL SYSTEM";
+		if index(upcase(strip(Name_Owner)),"AMERICAN HOSPITAL MANAGEMENT")>0 then Owner_Clean= "AMERICAN HOSPITAL MANAGEMENT";
+		if index(upcase(strip(Name_Owner)),"AVANTI")>0 then Owner_Clean= "AVANTI HEALTHCARE SYSTEM";
+		if index(upcase(strip(Name_Owner)),"ALHAMBRA")>0 then Owner_Clean= "ALHAMBRA HOSPITAL LP";
+		if index(upcase(strip(Name_Owner)),"BEHAVIORAL HEALTH SERVICES")>0 then Owner_Clean= "BEHAVIORAL HEALTH SERVICES";
+		if index(upcase(strip(Name_Owner)),"BARTON")>0 then Owner_Clean= "BARTON HEALTHCARE SYSTEM";
+		if index(upcase(strip(Name_Owner)),"BIGGS")>0 then Owner_Clean= "BIGGS GRIDLEY MEMORIAL HOSP";
+		if index(upcase(strip(Name_Owner)),"BROTMAN")>0 then Owner_Clean= "BROTMAN MEDICAL CENTER";
+		if index(upcase(strip(Name_Owner)),"CASA")>0 then Owner_Clean= "CASA COLINA";
+		if index(upcase(strip(Name_Owner)),"CASA")>0 then Owner_Clean= "CASA COLINA";
+		if index(upcase(strip(Name_Owner)),"CENTURY")>0 then Owner_Clean= "CENTURY CITY DOCTORS HOSPITAL";
+		if index(upcase(strip(Name_Owner)),"CFHS")>0 then Owner_Clean= "CFHS HOLDINGS";
+		if index(upcase(strip(Name_Owner)),"CHA")>0 then Owner_Clean= "CHA HOLLYWOOD";
+		if index(upcase(strip(Name_Owner)),"CITY OF HOPE")>0 then Owner_Clean= "CITY OF HOPE NATIONAL MEDICAL CENTER";
+		if (index(upcase(strip(Name_Owner)),"CATHOLIC HEALT")>0 
+			or index(upcase(strip(Name_Owner)),"CHW")>0 
+			or index(upcase(strip(Name_Owner)),"DIGNITY")>0 
+												) then Owner_Clean= "CATHOLIC HEALTHCARE WEST";
+		if (index(upcase(strip(Name_Owner)),"COLUSA REGIONAL MEDICAL CENTER")>0 
+												) then Owner_Clean= "COLUSA REGIONAL MEDICAL CENTER";
+		if index(upcase(strip(Name_Owner)),"CFHS HOLDINGS")>0 then Owner_Clean= "CFHS HOLDINGS";
+		if index(upcase(strip(Name_Owner)),"DAUGHTERS OF CHARITY")>0 then Owner_Clean= "DAUGHTERS OF CHARITY HEALTH SYSTEM";
+		if index(upcase(strip(Name_Owner)),"DOCTORS COMM")>0 then Owner_Clean= "DOCTORS COMMUNITY HEALTHCARE CORP";
+		if (index(upcase(strip(Name_Owner)),"DOCTOR'S HOSPITAL OF WEST COVINA")=1 
+			or index(upcase(strip(Name_Owner)),"DOSTOR")=1 
+												) then Owner_Clean= "DOCTORS HOSPITAL OF WEST COVINA";
+		if index(upcase(strip(Name_Owner)),"DR. PREM N. REDDY")>0 then Owner_Clean= "PRIME HEALTHCARE";
+		if index(upcase(strip(Name_Owner)),"EAST VALLEY")>0 then Owner_Clean= "EASY VALLEY GLENDORA HOSPITAL";
+		if index(upcase(strip(Name_Owner)),"EAST VALLEY")>0 then Owner_Clean= "EASY VALLEY GLENDORA HOSPITAL";
+		if index(upcase(strip(Name_Owner)),"ENLOE")>0 then Owner_Clean= "ENLOE HEALTH SYSTEMS";
+		if index(upcase(strip(Name_Owner)),"FSC")>0 then Owner_Clean= "FSC HOSPITAL";
+		if index(upcase(strip(Name_Owner)),"GIL TEPPER")>0 then Owner_Clean= "GIL TEPPER MD";
+		if index(upcase(strip(Name_Owner)),"HEALTHPLUS")>0 then Owner_Clean= "HEALTHPLUS";
+		if index(upcase(strip(Name_Owner)),"HEALTHSOUTH")>0 then Owner_Clean= "HEALTHSOUTH CORP";
+		if (index(upcase(strip(Name_Owner)),"HCA HEALTHCARE")>0 
+			or index(upcase(strip(Name_Owner)),"HCA ")>0
+			or index(upcase(strip(Name_Owner)),"HCA-")>0 
+			or Name_Owner="HCA"
+					)then Owner_Clean= "HCA HEALTHCARE CORP";
+		if (index(upcase(strip(Name_Owner)),"INTEGRATED HEALTHCARE")>0 
+			or index(upcase(strip(Name_Owner)),"INTERGRATED HEALTHCARE")>0 
+												) then Owner_Clean= "INTEGRATED HEALTHCARE HOLDINGS";
+		if index(upcase(strip(Name_Owner)),"INTERHEALTH CORP")>0 then Owner_Clean= "INTERHEALTH CORPORATION";
+		if index(upcase(strip(Name_Owner)),"KARYKEION")>0 then Owner_Clean= "KARYKEION";
+		if index(upcase(strip(Name_Owner)),"JOHN MUIR")>0 then Owner_Clean= "JOHN MUIR/MOUNT DIABLE HEALTH SYSTEM";
+		if index(upcase(strip(Name_Owner)),"LODI MEMORIAL")>0 then Owner_Clean= "JOHN MUIR/MOUNT DIABLE HEALTH SYSTEM";
+		if (index(upcase(strip(Name_Owner)),"LOS ANGELES COUNTY")>0 
+			or index(upcase(strip(Name_Owner)),"LOS ANGELS COUNTY")>0 
+			or index(upcase(strip(Name_Owner)),"COUNTY OF LOS ANGELES")>0 
+												) then Owner_Clean= "LOS ANGELES COUNTY DEPT OF HEALTH SERVICE";
+		if (index(upcase(strip(Name_Owner)),"COUNTY OF MONTEREY")>0 
+			or index(upcase(strip(Name_Owner)),"COUNTY OF MONTERY")>0 
+												) then Owner_Clean= "COUNTY OF MONTEREY";
+		if index(upcase(strip(Name_Owner)),"NORTHBAY HEALTH")>0 then Owner_Clean= "NORTHBAY HEALTHCARE SYSTEM";
+		if index(upcase(strip(Name_Owner)),"TULARE")>0 then Owner_Clean= "TULARE LOCAL HEALTH CARE DISTRICT";
+		if index(upcase(strip(Name_Owner)),"MARK TWAIN")>0 then Owner_Clean= "MARK TWAIN HEALTHCARE CORPORATION";
+		if (index(upcase(strip(Name_Owner)),"MEMORIAL HOSPATALS ASSOCIATION")>0 
+			or index(upcase(strip(Name_Owner)),"MEMORIAL HOSPITAL ASSOCIATION")>0
+			or index(upcase(strip(Name_Owner)),"MEMORIAL HOSPITALS ASSOCIATION")>0
+												) then Owner_Clean= "SUTTER HEALTH";
+		if index(upcase(strip(Name_Owner)),"KINDRED")>0 then Owner_Clean= "KINDRED HEALTHCARE";
+		if index(upcase(strip(Name_Owner)),"PAMC")>0 then Owner_Clean= "PAMC LTD";
+		if (index(upcase(strip(Name_Owner)),"PACIFICA OF THE VALLEY CORPORATION")>0 
+		or index(upcase(strip(Name_Owner)),"DOCTORS COMMUNITY HEALTHCARE CORP")>0 
+											)	 then Owner_Clean= "ENVISION HOSPITAL CORPORATION";
+		if (index(upcase(strip(Name_Owner)),"PRIME")>0 
+			or index(upcase(strip(Name_Owner)),"VERITAS HEALTH")>0 
+			or index(upcase(strip(Name_Owner)),"VERITAS HEALTH")>0 
+												) then Owner_Clean= "PRIME HEALTHCARE";
+		if index(upcase(strip(Name_Owner)),"PROMISE HEALTHCARE")>0 then Owner_Clean= "PROMISE HEALTHCARE";
+		if (index(upcase(strip(Name_Owner)),"REGENTS OF THE UNIVERSITY OF CALIFORNIA")>0 
+			or index(upcase(strip(Name_Owner)),"REGENTS OF THE UNIVESITY OF CALIFORNIA")>0 
+			or index(upcase(strip(Name_Owner)),"INTEGRATED HELATHCARE HOLDING")>0 
+			or index(upcase(strip(Name_Owner)),"UC REGENTS")>0 
+												) then Owner_Clean= "INTEGRATED HEALTHCARE HOLDINGS";
+		if index(upcase(strip(Name_Owner)),"PROVIDENCE")>0	then Owner_Clean= "PROVIDENCE HEALTHCARE SYSTEM";
+		if index(upcase(strip(Name_Owner)),"SAN FERNANDO")>0 then Owner_Clean= "SAN FERNANDO COMMUNITY HOSPITAL";
+		if index(upcase(strip(Name_Owner)),"LEAVENWORTH")>0 then Owner_Clean= "SISTERS OF CHARITY OF LEAVENWORTH";
+		if index(upcase(strip(Name_Owner)),"SHARP")>0 then Owner_Clean= "SHARP";
+		if index(upcase(strip(Name_Owner)),"SCRIPPS")>0 then Owner_Clean= "SCRIPPS";
+		if index(upcase(strip(Name_Owner)),"STANFORD")>0 then Owner_Clean= "STANFORD UNIVERSITY HOSPITAL";
+		if (index(upcase(strip(Name_Owner)),"ST JOSEPH HEALTH")>0 
+					or index(upcase(strip(Name_Owner)),"ST. JOSEPH HEALTH")>0
+					)	then Owner_Clean= "ST JOSEPH HEALTH SYSTEM";
+		if index(upcase(strip(Name_Owner)),"SUN HEALTHCARE GROUP")>0 then Owner_Clean= "SUN HEALTHCARE GROUP";
+		if (index(upcase(strip(Name_Owner)),"SUTTER")>0 
+					or index(upcase(strip(Name_Owner)),"CALIFORNIA PACIFIC MEDICAL")>0
+					or index(upcase(strip(Name_Owner)),"ST. LUKE'S HOSPITAL")>0
+							)then Owner_Clean= "SUTTER HEALTH";
+		if index(upcase(strip(Name_Owner)),"QUEEN")>0 then Owner_Clean= "QUEEN OF THE VALLEY MEDICAL CENTER";
+		if index(upcase(strip(Name_Owner)),"TENET")>0 then Owner_Clean= "TENET HEALTHCARE CORPORATION";
+		if index(upcase(strip(Name_Owner)),"UNIVERSAL HEALTH SERVICE")>0 then Owner_Clean= "UNIVERSAL HEALTH SERVICES";
+		if index(upcase(strip(Name_Owner)),"UNIVERSAL HEALTH SYSTEM")>0 then Owner_Clean= "UNIVERSAL HEALTH SYTEMS";
+		if index(upcase(strip(Name_Owner)),"VANGUARD")>0 then Owner_Clean= "VANGUARD HEALTH SYSTEMS";
+		if index(upcase(strip(Name_Owner)),"VIBRA")>0 then Owner_Clean= "VIBRA HEALTHCARE";
+		if index(upcase(strip(Name_Owner)),"VICTOR VALLEY")>0 then Owner_Clean= "VICTOR VALLEY ";
+		if index(upcase(strip(Name_Owner)),"ALLIANCE")>0 then Owner_Clean= "ALLIANCE INVESTMENT";
+
+
+	if Owner_Clean = "" then Owner_Clean= Name_Owner;
+
+	Cntrl_Church=strip(input(Type_of_Control_Church,best12.));
+	Cntrl_NonProf_crp=strip(input(Type_of_Control_Non_Profit_Corpo,best12.));
+	Cntrl_NonProf_Otr=strip(input(Type_of_Control_Non_Profit_Other,best12.));
+	Cntrl_Ivstr_Indv=strip(input(Type_of_Control_Investor___Indiv,best12.));
+	Cntrl_Ivstr_Pntr=strip(input(Type_of_Control_Investor___Partn,best12.));
+	Cntrl_Ivstr_Corp=strip(input(Type_of_Control_Investor___Corpo,best12.));
+	Cntrl_Gov_St=strip(input(Ctrl_State,best12.));
+	Cntrl_Gov_Cnty=strip(input(Ctrl_County,best12.));
+	Cntrl_Gov_CtyCnty=strip(input(Ctrl_CityCounty,best12.));
+	Cntrl_Gov_Cty=strip(input(Ctrl_City,best12.));
+	Cntrl_Gov_Dst=strip(input(Ctrl_District,best12.));
+
+	if Cntrl_Church=1 then Ownership="Church";
+	else if Cntrl_NonProf_crp=1 then Ownership="Non-Profit Corporation";
+	else if Cntrl_NonProf_Otr=1 then Ownership="Non-Profit Other";
+	else if Cntrl_Ivstr_Indv=1 then Ownership="Individual Investor";
+	else if Cntrl_Ivstr_Pntr=1 then Ownership="Investor Partnership";
+	else if Cntrl_Ivstr_Corp=1 then Ownership="Investor Corporation";
+	else if Cntrl_Gov_St=1 then Ownership="Gov State Owned";
+	else if Cntrl_Gov_Cnty=1 then Ownership="Gov County Owned";
+	else if Cntrl_Gov_CtyCnty=1 then Ownership="Gov CityCounty Owned";
+	else if Cntrl_Gov_Cty=1 then Ownership ="Gov City Owned";
+	else if Cntrl_Gov_Dst=1 then Ownership="Gov DIstrict Owned";
+
+Daily_Cen_Tot=Pat_Days_Tot/Dschrg_Tot;
+Daily_Cen_OthrPyr=Pat_Days_OthrPyr/Dschrg_OthrPyr;
+Daily_Cen_OthrInd=Pat_Days_OthrInd/Dschrg_OthrInd;
+Daily_Cen_CommMgd=Pat_Days_CommMgd/Dschrg_CommMgd;
+Daily_Cen_CommTrad=Pat_Days_CommTrad/Dschrg_CommTrad;
+Daily_Cen_IndgMgd=Pat_Days_IndgMgd/Dschrg_IndgMgd;
+Daily_Cen_IndgTrd=Pat_Days_IndgTrd/Dschrg_IndgTrd;
+Daily_Cen_MCalMgd=Pat_Days_MCalMgd/Dschrg_MCalMgd;
+Daily_Cen_MCalTrd=Pat_Days_MCalTrd/Dschrg_MCalTrd;
+Daily_Cen_McrMgd=Pat_Days_McrMgd/Dschrg_McrMgd;
+Daily_Cen_McrTrad=Pat_Days_McrTrad/Dschrg_McrTrad;
+
+Dschrg_pr_Stffd_Bd=Dschrg_Tot/Beds_Stfd_Tot;
+
+Days_Rev_Outsdng=(Bal_CA_AR_NR/IS_Gr_Rev_Pats)*365;
+
+Deduct_Prct_GrRev_DlyHosp=SRC_Ddcts_DailyHosp/SRC_GrRev_DailyHosp;
+Deduct_Prct_GrRev_DlyHosp_IS_Tot=IS_Ddcts_BD/IS_Gr_Rev_Pats;
+
+Pay_Rate_DlyHosp=SRC_NetRev_DailyHosp/SRC_GrRev_DailyHosp;
+Pay_Rate_MdSurg_Acute=SRC_NetRev_MSrg_Act/SRC_GrRev_DailyHosp;
+IP_Rev_Prct_TotDlyHosp=Gr_IP_Rev_Tot_DailyHosp/Gr_Pat_Rev_Tot_DailyHosp;
+
+
+Margin_Operating=IS_Net_Op/IS_Rev_Tot_Op;
+
+McrTrad_Prct_TotDdct=IS_Ddcts_CtrcAdj_McrTrad/IS_Ddcts_CtrcAdj_Tot;
+McrMgd_Prct_TotDdct=IS_Ddcts_CtrcAdj_McrMgd/IS_Ddcts_CtrcAdj_Tot;
+McrMgd_Prct_TotDdct=IS_Ddcts_CtrcAdj_McrMgd/IS_Ddcts_CtrcAdj_Tot;
+MCalTrd_Prct_TotDdct=IS_Ddcts_CtrcAdj_MCalTrd/IS_Ddcts_CtrcAdj_Tot;
+MCalMgd_Prct_TotDdct=IS_Ddcts_CtrcAdj_MCalMgd/IS_Ddcts_CtrcAdj_Tot;
+DSHMCal_Prct_TotDdct=IS_Ddcts_CtrcAdj_DSHMCal/IS_Ddcts_CtrcAdj_Tot;
+IndgTrd_Prct_TotDdct=IS_Ddcts_CtrcAdj_IndgTrd/IS_Ddcts_CtrcAdj_Tot;
+IndgMgd_Prct_TotDdct=IS_Ddcts_CtrcAdj_IndgMgd/IS_Ddcts_CtrcAdj_Tot;
+CommTrad_Prct_TotDdct=IS_Ddcts_CtrcAdj_CommTrad/IS_Ddcts_CtrcAdj_Tot;
+CommMgd_Prct_TotDdct=IS_Ddcts_CtrcAdj_CommMgd/IS_Ddcts_CtrcAdj_Tot;
+PolDicnt_Prct_TotDdct=IS_Ddcts_CtrcAdj_PolDicnt/IS_Ddcts_CtrcAdj_Tot;
+
+Op_earn_Over_Non_Op_Earn=IS_Net_Op/IS_Net_NOp_Rev_Exp;
+
+run;
+
+
+proc sort data = B_allyears; by oshpd_id ;
+proc sort data = B_util_stack; by oshpd_id ;
+proc sort data = C_util_trsp_edlic_chg; by oshpd_id;
+proc sort data = B_util_stack; by oshpd_id;
+
+Data D_Fin_ED_Only D_No_Fin_Consol;
+	merge 
+	B_allyears (in=a)
+	C_util_trsp_edlic_chg (in=c keep = oshpd_id chg_ed_hosps)
+	C_Util_trsp_Svsc_chg (in=b keep = oshpd_id chg_Prmry_Svc)
+	B_util_stack (in=d keep = type_lic oshpd_id)
+	;
+	by oshpd_id ;
+	if Dum_Merged_Hospital="1" and Acquired_year< year then post_Aqstn=1; else post_Aqstn=0; 
+	if a and b and c then output D_Fin_ED_Only;
+	if c and not a then output D_No_Fin_Consol;
+
+run;
+
+proc sort data = D_fin_ed_only; by oshpd_id year descending date;
+proc sort nodupkey data = D_fin_ed_only out = D_fin_ed_only_nodup; 
+by oshpd_id year;
+run;
+
+				/* Look for acquisitions in 2012/2013 or 2002-2006 with new data
+				Data B_allyears_Merge_test (keep = 
+				year
+				oshpd_id
+				Dum_Merged_Hospital 
+				Acquired_year 
+				Acquired_qtr 
+				Facility__Doing_Business_As__Nam 
+				Name_Owner 
+				Previous_Name_of_Institution);
+					set B_allyears;
+				where year in(2002 2003 2004 2005 2006 2013 2012 2011);
+				run;
+
+				proc sort data = B_allyears_Merge_test;
+				by oshpd_id Facility__Doing_Business_As__Nam;
+				proc transpose data = B_allyears_Merge_test
+				out = B_allyears_Merge_test2 (drop=_:);
+				by oshpd_id Facility__Doing_Business_As__Nam;
+				var Name_Owner;
+				run;
+				Data B_allyears_Merge_test3 ;
+				set B_allyears_Merge_test2;
+				if COL1=COL2 then delete;
+				run;
+
+
+				/* End update of merged hospital identification*/
+
+
+
+
+/* BEGIN SUMMARY STATISTICS FOR OUTPUT*/
+
+/*Ownership type study*/
+proc sort data = D_fin_ed_only; by oshpd_id  post_Aqstn Dum_Merged_hospital; 
+proc means data= D_fin_ed_only noprint; 
+by oshpd_id  post_Aqstn Dum_Merged_hospital;
+output out = D_Fin_ED_Ownr_roll
+max (Cntrl_Church)=Evr_Church
+max(Cntrl_NonProf_crp)=Evr_NPCrp
+max(Cntrl_NonProf_Otr)=Evr_NPOtr
+max(Cntrl_Ivstr_Indv)=Evr_Ivst_Ind
+max(Cntrl_Ivstr_Pntr)=Evr_Ivst_Ptr
+max(Cntrl_Ivstr_Corp)=Evr_Ivst_Crp
+max(Cntrl_Gov_St)=Evr_Gv_St
+max(Cntrl_Gov_Cnty)=Evr_Gv_Cnty
+max(Cntrl_Gov_CtyCnty)=Evr_Gv_CtyCnty
+max(Cntrl_Gov_Cty)=Evr_Gv_Cty
+max(Cntrl_Gov_Dst)=Evr_Gv_Dst
+;
+run;
+
+proc freq data = D_Fin_ED_Ownr_roll noprint;
+table post_Aqstn*
+Dum_Merged_hospital*
+Evr_Church*
+Evr_NPCrp*
+Evr_NPOtr*
+Evr_Ivst_Ind*
+Evr_Ivst_Ptr*
+Evr_Ivst_Crp*
+Evr_Gv_St*
+Evr_Gv_Cnty*
+Evr_Gv_CtyCnty*
+Evr_Gv_Cty*
+Evr_Gv_Dst
+/list missing out = E_ownership_typ;
+
+run;
+
+proc sort data =  D_fin_ed_only_nodup; by oshpd_id year;
+proc transpose data = D_fin_ed_only_nodup out =E_Ownership_mergers prefix=year_;
+	where Dum_Merged_hospital="1";
+	by OSHPD_id  Acquired_year;
+	var Ownership;
+	id year;
+run;
+
+/* staffed beds*/
+
+proc sql;
+create table E_stffdBeds_test as
+select oshpd_id, Legal_Name, year, Name_Owner, Previous_Name_of_Institution, date,Report_Period_From , Beds_Stfd_Tot, chg_ed_hosps, count(*) as count
+from D_fin_ed_only
+group by oshpd_id, year
+having count(*)>1;
+quit;
+
+proc sort data = D_fin_ed_only_nodup; by oshpd_id post_Aqstn Dum_Merged_hospital ;
+proc means data = D_fin_ed_only_nodup noprint;
+	by oshpd_id
+	post_Aqstn
+	Dum_Merged_hospital;
+	output out = E_stffdBeds
+	mean(Beds_Stfd_Tot)=Ave_Ann_Stffd_bed;
+	run;
+
+
+/* Ave Daily Census*/
+proc sort data = D_fin_ed_only_nodup; by oshpd_id post_Aqstn Dum_Merged_hospital ;
+proc means data = D_fin_ed_only_nodup noprint;
+	by oshpd_id
+	post_Aqstn
+	Dum_Merged_hospital;
+	output out = E_Pat_Dly_Cen (drop= _type_)
+	mean(Daily_Cen_Tot)=Ave_Ann_Pat_dly_Cen;
+	run;
+
+Data F_Daily_Cen_output;
+	set D_fin_ed_only_nodup
+	(keep = 
+		Legal_Name
+		oshpd_id
+		year
+		Dum_Merged_Hospital
+		Acquired_year
+		Acquired_qtr
+
+		Daily_Cen_Tot
+		Daily_Cen_OthrPyr
+		Daily_Cen_OthrInd
+		Daily_Cen_CommMgd
+		Daily_Cen_CommTrad
+		Daily_Cen_IndgMgd
+		Daily_Cen_IndgTrd
+		Daily_Cen_MCalMgd
+		Daily_Cen_MCalTrd
+		Daily_Cen_McrMgd
+		Daily_Cen_McrTrad
+		Beds_Stfd_Tot
+		);
+run;
+
+/* Discharges*/
+
+proc sort data = D_fin_ed_only_nodup; by oshpd_id post_Aqstn Dum_Merged_hospital ;
+proc means data = D_fin_ed_only_nodup noprint;
+	by oshpd_id
+	post_Aqstn
+	Dum_Merged_hospital;
+	output out = E_Dschrg (drop= _type_)
+	mean(Dschrg_Tot)=Ave_Ann_dschrg
+	mean(Dschrg_pr_Stffd_Bd) = Ave_Ann_Bed_Util;
+	run;
+
+Data F_Dschrg_output;
+	set D_fin_ed_only_nodup
+	(keep = 
+		Legal_Name
+		oshpd_id
+		year
+		Dum_Merged_Hospital
+		post_Aqstn
+		Acquired_year
+		Acquired_qtr
+Dschrg_pr_Stffd_Bd
+Dschrg_Tot
+Beds_Stfd_Tot 
+Dschrg_OthrPyr
+Dschrg_OthrInd
+Dschrg_CommMgd
+Dschrg_CommTrad
+Dschrg_IndgMgd
+Dschrg_IndgTrd
+Dschrg_MCalMgd
+Dschrg_MCalTrd
+Dschrg_McrMgd
+Dschrg_McrTrad
+);
+run;
+
+/*Outpatient Visits by Payor*/
+
+proc sort data = D_fin_ed_only_nodup; by oshpd_id post_Aqstn Dum_Merged_hospital ;
+proc means data = D_fin_ed_only_nodup noprint;
+	by oshpd_id
+	post_Aqstn
+	Dum_Merged_hospital;
+	output out = E_OP_Visits (drop= _type_)
+	mean(Visits_OP_Tot)=Ave_OP_Vsts;
+	run;
+
+Data F_OPVisits_output;
+	set D_fin_ed_only_nodup
+	(keep = 
+		Legal_Name
+		oshpd_id
+		year
+		Dum_Merged_Hospital
+		post_Aqstn
+		Acquired_year
+		Acquired_qtr
+Visits_OP_Tot
+Visits_OP_OthrInd
+Visits_OP_CommMgd
+Visits_OP_CommTrad
+Visits_OP_IndgMgd
+Visits_OP_IndgTrd
+Visits_OP_MCalMgd
+Visits_OP_MCalTrd
+Visits_OP_McrMgd
+Visits_OP_McrTrad
+);
+proc sort data = F_Dschrg_output; by oshpd_id year;
+run;
+
+/* 	Patient Revenue*/
+proc sort data = D_fin_ed_only_nodup; by oshpd_id post_Aqstn Dum_Merged_hospital ;
+proc means data = D_fin_ed_only_nodup noprint;
+	by oshpd_id
+	post_Aqstn
+	Dum_Merged_hospital;
+	output out = E_Pat_NetRev (drop= _type_)
+	mean(IS_Rev_Net)=Ave_Pat_NetRev;
+	run;
+
+	proc sort data = D_fin_ed_only_nodup; by oshpd_id post_Aqstn Dum_Merged_hospital ;
+proc means data = D_fin_ed_only_nodup noprint;
+	by oshpd_id
+	post_Aqstn
+	Dum_Merged_hospital;
+	output out = E_Pat_GrsRev (drop= _type_)
+	mean(IS_Gr_Rev_Pats)=Ave_Pat_GrsRev;
+	run;
+
+
+
+
+/* Accounts Receivable*/
+proc sort data = D_fin_ed_only_nodup; by oshpd_id post_Aqstn Dum_Merged_hospital ;
+proc means data = D_fin_ed_only_nodup noprint;
+	by oshpd_id
+	post_Aqstn
+	Dum_Merged_hospital;
+	output out = E_AR (drop= _type_)
+	mean(Bal_CA_AR_NR)=Ave_AR_NR;
+	run;
+proc sort data = D_fin_ed_only_nodup; by oshpd_id post_Aqstn Dum_Merged_hospital ;
+proc means data = D_fin_ed_only_nodup noprint;
+	by oshpd_id
+	post_Aqstn
+	Dum_Merged_hospital;
+	output out = E_AR_Comm (drop= _type_)
+	mean(Bal_CA_AR_Comm_Payors)=Ave_AR_Comm;
+	run;
+
+	Data E_AR_Tot_Comm;
+		merge 
+			E_AR (in=a)
+			E_AR_Comm (in=b rename = _freq_=Freq2);
+	by oshpd_id
+	post_Aqstn
+	Dum_Merged_hospital;
+	 if a or b;
+ 	run;
+proc sort data = D_fin_ed_only_nodup; by oshpd_id post_Aqstn Dum_Merged_hospital ;
+proc means data = D_fin_ed_only_nodup noprint;
+	by oshpd_id
+	post_Aqstn
+	Dum_Merged_hospital;
+	output out = E_AR_DSO (drop= _type_)
+	mean(Days_Rev_Outsdng)=Ave_DSO;
+	run;
+proc sort data = D_fin_ed_only_nodup; by oshpd_id post_Aqstn Dum_Merged_hospital ;
+proc means data = D_fin_ed_only_nodup noprint;
+	by oshpd_id
+	post_Aqstn
+	Dum_Merged_hospital;
+	output out = E_Ddct_DlyHospRev(drop= _type_)
+	mean(Deduct_Prct_GrRev_DlyHosp)=Ave_Prct_GrRev_DlyHosp;
+	run;
+proc sort data = D_fin_ed_only_nodup; by oshpd_id post_Aqstn Dum_Merged_hospital ;
+proc means data = D_fin_ed_only_nodup noprint;
+	by oshpd_id
+	post_Aqstn
+	Dum_Merged_hospital;
+	output out = E_Deduct_Prct_GrRev_DlyHosp(drop= _type_)
+	mean(Deduct_Prct_GrRev_DlyHosp_IS_Tot)=Ave_Deduct_Prct_GrRev_DlyHosp;
+	run;
+
+	/* Equiptment Purchases*/
+proc sort data = D_fin_ed_only_nodup; by oshpd_id post_Aqstn Dum_Merged_hospital ;
+proc means data = D_fin_ed_only_nodup noprint;
+	by oshpd_id
+	post_Aqstn
+	Dum_Merged_hospital;
+	output out = E_Eqpt(drop= _type_)
+	mean(Bal_PPE_Eqpt)=Ave_PPE_Eqpt
+	mean(Chg_PPE_Addtns_Eqpt)=Ave_Addtn_Eqpt;
+
+run;
+
+/* Intangible Assets*/
+
+proc sort data = D_fin_ed_only_nodup; by oshpd_id post_Aqstn Dum_Merged_hospital ;
+proc means data = D_fin_ed_only_nodup noprint;
+	by oshpd_id
+	post_Aqstn
+	Dum_Merged_hospital;
+	output out = E_Intgble_Assts(drop= _type_)
+	mean(Bal_IntgA_Tot)=Ave_Intgble_Assts;
+	run;
+
+/* Notes Payable*/
+
+proc sort data = D_fin_ed_only_nodup; by oshpd_id post_Aqstn Dum_Merged_hospital ;
+proc means data = D_fin_ed_only_nodup noprint;
+	by oshpd_id
+	post_Aqstn
+	Dum_Merged_hospital;
+	output out = E_NP_LoanP(drop= _type_)
+	mean(Bal_CL_NP_LP)=Ave_NP_LoanP;
+	run;
+
+/*Long Term Debt*/
+	
+proc sort data = D_fin_ed_only_nodup; by oshpd_id post_Aqstn Dum_Merged_hospital ;
+proc means data = D_fin_ed_only_nodup noprint;
+	by oshpd_id
+	post_Aqstn
+	Dum_Merged_hospital;
+	output out = E_LTD(drop= _type_)
+	mean(Bal_LTD_Tot_LTD)=Ave_LTD;
+	run;
+
+/* Retained Earnings and Equity */
+
+proc sort data = D_fin_ed_only_nodup; by oshpd_id post_Aqstn Dum_Merged_hospital ;
+proc means data = D_fin_ed_only_nodup noprint;
+	by oshpd_id
+	post_Aqstn
+	Dum_Merged_hospital;
+	output out = E_RE_and_Eq(drop= _type_)
+	mean(Bal_EQ_Invt_Crp_RE)=Ave_AnnRtEarn
+	mean(Bal_Tot_EQ)=Ave_Ann_Eqty;
+	run;
+
+/* High Level Payrates*/
+
+proc sort data = D_fin_ed_only_nodup; by oshpd_id post_Aqstn Dum_Merged_hospital ;
+proc means data = D_fin_ed_only_nodup noprint;
+	by oshpd_id
+	post_Aqstn
+	Dum_Merged_hospital;
+	output out = E_PayRates(drop= _type_)
+	mean(Pay_Rate_DlyHosp)=Ave_Ann_Pay_Rate_DlyHosp
+	mean(Pay_Rate_MdSurg_Acute)=Ave_Ann_Pay_Rate_MdSurg_Acute
+	mean(IP_Rev_Prct_TotDlyHosp)=Ave_IP_Rev_Prct_TotDlyHosp;
+	run;
+
+
+/* Margins*/
+
+proc sort data = D_fin_ed_only_nodup; by oshpd_id post_Aqstn Dum_Merged_hospital ;
+proc means data = D_fin_ed_only_nodup noprint;
+	by oshpd_id
+	post_Aqstn
+	Dum_Merged_hospital;
+	output out = E_Margin(drop= _type_)
+	mean(Margin_Operating)=Ave_Ann_Margin;
+	run;
+
+/*Extraordinary Items*/
+
+proc sort data = D_fin_ed_only_nodup; by oshpd_id post_Aqstn Dum_Merged_hospital ;
+proc means data = D_fin_ed_only_nodup noprint;
+	by oshpd_id
+	post_Aqstn
+	Dum_Merged_hospital;
+	output out = E_Extr_Items(drop= _type_)
+	mean(IS_Xtraord1)=Ave_ann_Extr_items1
+	mean(IS_Xtraord2)=Ave_ann_Extr_items2;
+run;
+
+/* Deductions by payor*/
+proc sort data = D_fin_ed_only_nodup; by oshpd_id post_Aqstn Dum_Merged_hospital ;
+proc means data = D_fin_ed_only_nodup noprint;
+	by oshpd_id
+	post_Aqstn
+	Dum_Merged_hospital;
+	output out = E_Deductions(drop= _type_)
+	mean(McrTrad_Prct_TotDdct)=Ave_ann_McrTrad_Prct_TotDdct
+	mean(McrMgd_Prct_TotDdct)=Ave_ann_McrMgd_Prct_TotDdct
+	mean(MCalTrd_Prct_TotDdct)=Ave_ann_MCalTrd_Prct_TotDdct
+	mean(MCalMgd_Prct_TotDdct)=Ave_ann_MCalMgd_Prct_TotDdct
+	mean(DSHMCal_Prct_TotDdct)=Ave_ann_DSHMCal_Prct_TotDdct
+	mean(IndgTrd_Prct_TotDdct)=Ave_ann_IndgTrd_Prct_TotDdct
+	mean(IndgMgd_Prct_TotDdct)=Ave_ann_IndgMgd_Prct_TotDdct
+	mean(CommTrad_Prct_TotDdct)=Ave_ann_CommTrad_Prct_TotDdct
+	mean(CommMgd_Prct_TotDdct)=Ave_ann_CommMgd_Prct_TotDdct
+	mean(PolDicnt_Prct_TotDdct)=Ave_ann_PolDicnt_Prct_TotDdct
+;
+run;
+
+/* Operating v Non Operating Income*/
+proc sort data = D_fin_ed_only_nodup; by oshpd_id post_Aqstn Dum_Merged_hospital ;
+proc means data = D_fin_ed_only_nodup noprint;
+	by oshpd_id
+	post_Aqstn
+	Dum_Merged_hospital;
+	output out = E_OptoNonOp_Inc(drop= _type_)
+	mean(Op_earn_Over_Non_Op_Earn)=Ave_ann_OptoNonOp_Inc;
+	run;
+
+
+
+
+/* For output*/
+
+%macro export(dataset,sheet);
+proc export data = &dataset
+outfile = 'E:\Health Econ Research\Output Analyses\SASOUT4.xlsx'
+dbms=excel replace;
+sheet=&sheet;
+run;
+%mend export(dataset,sheet);
+
+%export(E_ownership_typ,OwnrTyp)
+%export(E_Ownership_mergers,OwnrTypMgr)
+%export(E_stffdbeds,StffdBd)
+%export(E_Pat_Dly_Cen,DlyCens)
+%export(E_Dschrg,Dschrgs)
+%export(E_OP_Visits,OPVsts)
+%export(E_AR_Tot_Comm,AR)
+%export(E_AR_DSO,DSO)
+%export(E_Ddct_DlyHospRev,DlyHspRev)
+%export(E_Deduct_Prct_GrRev_DlyHosp,RevDdct)
+%export(E_Eqpt,Eqpt)
+%export(E_Intgble_Assts,IntgblAsts)
+%export(E_NP_LoanP,NtP_LnP)
+%export(E_LTD,LTD)
+%export(E_RE_and_Eq,RE_EQ)
+%export(E_PayRates,PayRt)
+%export(E_Margin,Margin2)
+%export(E_Extr_Items,XtrdyItms)
+%export(E_Deductions,Ddcts)
+%export(E_OptoNonOp_Inc,OptoNonOp_Inc)
+%export(E_Pat_GrsRev,Pat_GrsRev)
+%export(E_Pat_NetRev,Pat_NetRev)
+%export(C_util_trsp_edlic,ED_Lic)
+%export(C_util_trsp_svsc,PrmSvcs)
+%export(F_Daily_Cen_output,DlyCens_Data)
+%export(F_Dschrg_output,Dschrg_Data)
+%export(B_allyears,Fin_Data)
+%export(B_util_stack,Util_Data)
+%export(F_OPVisits_output,OP_Vsts_dtl)
+%export(D_fin_ed_only_nodup,NoDupFinED)
+
+
+
+
+
+/*Prep data for logit model*/
+
+
+
+
+Data G_Logit_data;
+D_fin_ed_only_nodup (in=a)
+B_util_stack (in=b)
+;
+by oshpd_id;
+
