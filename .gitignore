@@ -1,4 +1,399 @@
 
+%inc 'f:\share\SAS Utilities\setup.sas';
+%inc 'f:\share\SAS Utilities\timestmp.sas';
+
+options obs=max replace compress=yes mtrace mprint;
+options obs=max noreplace compress=yes mtrace mprint mlogic symbolgen;
+
+
+
+Proc Contents
+
+	proc contents data = raw_data.dataset; run;
+
+
+
+
+Export Macro 
+
+	%macro export (data, sheet);
+	  proc export
+	    data = &data
+	    outfile = &path_out_file
+	    dbms = excel replace;
+	    sheet = "&sheet";
+	  run;
+	%mend export;
+
+
+Import excel 
+
+proc import out = A_Hosp_Gen
+datafile = "\\...xls"
+dbms = excel replace;
+sheet="sheet1";
+getnames=yes;
+run;
+
+
+
+
+Import Access file
+
+
+
+	%let path = \\filepath;
+	libname perm "\\filepath";
+
+
+	%macro Aimport(Data,Path);
+	proc access dbms=dbf;
+	create work.&Data..access;
+	path=&Path;
+	assign=yes;
+
+	create work.&Data..view;
+		select all;
+	run;
+
+	data perm.&data.;
+		set &data.;
+	run;
+
+	%mend;
+
+
+
+
+
+
+Call Symput
+
+
+	SYNTAX:
+	CALL SYMPUT(argument-1,argument-2);
+	Argument-1 specifies a character expression that identifies
+	a macro variable. If the macro variable does not exist, the routine creates it.
+	Argument-2 specifies a character expression that contains the value
+
+	data final_list_tins;
+	  set final_list_tins;
+	 tin_quotes = '"'||strip(tin)||'"';
+	run;
+
+
+	data _null_;
+	  set final_list_tins end=last;
+	  call symput ("tin_"||strip(_n_), tin_quotes);
+	  if last then call symput ("tin_n", strip(_n_));
+	run;
+
+	%put &tin_n &tin_1 &&tin_&tin_n;
+	
+	
+	%macro tin_list;
+	  %do i = 1 %to &tin_n;
+	    &&tin_&i
+	  %end;
+	%mend;
+	
+	proc sort nodupkey data = raw_data.kclmmeds
+	  (keep = claim_id _cl_gen h_pr_ssn _h_pr_suf _h_from_mmdd _h_to_mmdd)
+	  out = claim_list;
+	  where _pr_ssn in(&prime_tins %tin_list);
+	  by claim_id cl_cl_gen _pr_ssn _pr_suf _from_mmdd _to_mmdd;
+	run;
+	
+	
+	
+	* Import Values Into Memory; 
+	data _null_; 
+	 set DummyValues end=last; 
+	 call symput('Dummy' || trim(left(_n_)), Region); 
+	 if last then call symput('NumDummies', _n_); 
+	run; 
+	 
+	%put Total Number of Dummy Variables: &NumDummies; 
+	%put Dummy Variables: &Dummy1 &Dummy2 &Dummy3;
+	
+	* Create Dummy Variables Using Macro; 
+	option mtrace mprint; 
+	%macro CreateDummies; 
+	data OutputData; 
+	 set InputData; 
+	 %do i = 1 %to &NumDummies; 
+	 &&Dummy&i = (Region = "&&Dummy&i"); 
+	 %end; 
+	run; 
+	%mend CreateDummies; 
+	%CreateDummies; 
+
+
+
+
+
+
+
+
+
+
+%macro final_mapping_adjustments (datain, dataout);
+
+	data _null_;
+		set A_mapping_supp_final end=eof;
+		call symput ('mapped_tin' || left(trim(_n_)), TIN);
+		call symput ('mapped_suffix' || left(trim(_n_)), Suffix);
+		call symput ('mapped_OSHPDID' || left(trim(_n_)), OSHPD_ID);
+		if eof then call symput("loop_end", _n_);
+	run;
+
+	%put eof = &loop_end;
+	%put tin1 = &mapped_tin1;
+	
+
+		data &dataout;
+			set &datain;
+
+				%do i=1 %to &loop_end.;
+
+				if TIN = "&&mapped_tin&i" and PAYEE_ID_SUF_1 = "&&mapped_suffix&i" then OSHPD_ID = &&mapped_OSHPDID&i ;
+
+				%end;
+
+		run;
+
+	
+%mend final_mapping_adjustments;
+%final_mapping_adjustments(B_1, B_2);
+
+
+
+
+
+another example 
+		
+	data _null_;
+  		set pr_ssn_all_2 end=last;
+  		call symput ("sn_"||strip(_n_), pr_ssn_Quotes);
+  		if last then call symput ("sn_n", strip(_n_));
+	run;
+	%put &sn_n &sn_1 &&sn_&sn_n;    *193;
+
+	%macro pr_id_ssn_list;
+  	%do i = 1 %to &sn_n;
+    	&&sn_&i
+  	%end;
+	%mend;
+
+ proc sort data = no_nulls._no_nulls
+    out = work._x_finalmeds; 
+    by claimnum var2 _UPD_DATE LAST_UPD_TIME; 
+	where PR_SSN in(&_tins %pr_id_ssn_list);
+  run;
+
+Symput for importing
+
+	%import ("D:\AUDIT\LookupTable_AUDIT.xlsx", lookup_table);
+            
+	%let deleteports="BBBB", "CC CCC", "DDD";
+ 
+	%let pdf= "XXXX","YYYY", "ZZZZ", "AAAA";
+ 
+ 
+ 
+	data lookup_table2;
+            set lookup_table;
+            path1=strip(path)||"\"||strip(file);
+            if Portfolio in (&deleteports, &pdf) then delete;
+ 
+	run;
+ 
+ 
+	data _null_;
+            set lookup_table2;
+            call symput('path'||left(_n_) , trim(path1));
+ 
+            run;
+	%put &path1;
+	 
+	%let n=34;
+            %macro import2;
+                        
+                        %do i=1 %to &n; 
+                        proc import
+                                    datafile = "&&path&i"
+                                    out=portfolio&i
+                                    dbms=excel replace;
+                                    run;
+                        %end;
+ 
+            %mend import2;
+ 
+	%import2;
+
+
+
+
+
+
+	other code for importing referencing an excel file.
+
+
+	data A_charges;
+		set A_dir_clean (where=(category="CHARGES"));
+		if index(NAME, "AHMC") < 1;
+	run;
+
+
+
+	%macro chrgimp(directory=);
+
+	data _null_;
+		set &directory. end=eof;
+		call symput ('to_import' || left(trim(_n_)), New_Location);
+		call symput ('to_name' || left(trim(_n_)), Name);
+		if eof then call symput("loop_end", _n_);
+	run;
+
+	%put eof = &loop_end;
+	%put file1 = &to_import1;
+	
+	%do i=1 %to &loop_end.;
+		
+		proc import OUT=A_&&to_name&i
+		            DATAFILE= "&&to_import&i" 
+					DBMS = XLSX
+					 REPLACE;
+		       GETNAMES=YES;
+		run;
+
+	%end;
+		%mend chrgimp;
+
+
+
+
+	chrgimp(directory=A_charges);
+
+
+
+
+
+Rounding Functions 
+	floor( )
+
+
+
+
+
+
+Replacing characters in string 
+			else if Hospital in ("XXXX" ) and index(File, "Accounts") > 0 then do;
+			Name = tranwrd(tranwrd(tranwrd(scan(File, 1, "-"), " ", "_"), "Accounts", "Acct"),"XX", "YY");
+			end;
+
+
+Retain to Drag down 
+
+	data crosswalk_2Z;
+		set crosswalk (drop = mdc medsurg);
+		retain MS_DRG_Descriptions1;
+		if missing(MS_DRG_Descriptions) then do; MS_DRG_Descriptions=MS_DRG_Descriptions1; end; else do; MS_DRG_Descriptions1=MS_DRG_Descriptions; end;
+		if cms_v24^="" or ms_v25^="";
+	run;
+
+
+PROC Means selecting and naming stat vars
+
+			proc means data = B_select_prime_2 noprint; 
+				by CL_CL_ID  Hosp_Group CL_MED_DRG_CODE;
+					output out = C_claim_chgs (drop = _TYPE_ _FREQ_)
+					max(Inpatient) = Inpatient
+					sum(CL_H_CHG) = AG_Tot_Chgs 
+					min(_Dum) = _Dum
+					min(CL_CL_CCYY) = CL_CL_CCYY
+					max(Claim_Date) = Claim_To_Date
+					;
+			run; *154,241 / 154,313 with DRG included;	
+
+
+
+Take average disregarding blanks
+
+data ts_beds_2;
+	set ts_beds_1;
+	drop _Name_;
+	sum_beds=sum(of staffed_beds_:);
+	array ts{*} staffed_beds:;
+	num_miss=cmiss(of ts[*]);
+	Period_FY_avg_staffed_beds=sum_beds/(dim(ts)-num_miss);
+run;
+
+
+
+
+Remove data labels
+		proc datasets lib=work nolist;
+			modify _2002ad;
+		attrib _all_ label=''; *Remove labels;
+		run;
+
+
+delete dataset
+	proc datasets lib=work nolist;
+		delete Pd_2001-Pd_2010;
+		quit;
+	run;
+
+
+
+
+
+
+PROC SQL 
+
+
+
+
+
+
+If statements to create variables 
+
+	proc sql;
+		create table bucket_1_b as 
+			select bucket_1.*, dataset.PSNAP, case when PSNAP>0 then 1 end as DUM_MASS_Clm, case when var>=0 then 1 end as DUM_MASS_Clm2, sum(_Balance) as sum,
+				from bucket_1
+				left join PSNAP
+				on bucket_1.cl_cl_id=dataset.matched_claim_number
+				;
+		quit;
+
+
+
+
+No Dups 
+	proc sql;
+		create table Kill_balance_test as
+		select unique *
+		from cid 
+		having ag_id in (select unique ag_id from test);
+	quit;
+
+
+
+
+Frequency for dups
+
+	create table B_CID_Dups as 
+	select *, count(*) as count
+	from B_CID
+	group by _Patient_Number,hosp_
+	having count(*)>1;
+
+
+
+
+
 options mprint mtrace symbolgen
 %let Data_1path =E:\Health Econ Research\Data\OSHPD_FIN_Complete;
 
